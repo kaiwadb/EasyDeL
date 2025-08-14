@@ -560,6 +560,7 @@ class vInference:
         max_length = current_length + self.generation_config.max_new_tokens
         current_length = jnp.array(current_length)
         sequences = jnp.full((batch_size, max_length), pad_token_id, dtype=jnp.int32)
+        log_probs = jnp.full((batch_size, max_length), -jnp.inf, dtype=jnp.float16)
         sequences = lax.dynamic_update_slice(sequences, input_ids, (0, 0))
         is_sequence_finished = jnp.zeros((batch_size,), dtype=jnp.bool_)
         model_kwargs = model.prepare_inputs_for_generation(
@@ -573,6 +574,7 @@ class vInference:
         return SampleState(
             current_length=current_length,
             sequences=sequences,
+            log_probs=log_probs,
             running_token=input_ids,
             is_sequence_finished=is_sequence_finished,
             prng_key=rng,

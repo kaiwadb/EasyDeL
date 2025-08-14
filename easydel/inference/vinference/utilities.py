@@ -271,6 +271,7 @@ class SampleState:
 
     current_length: jax.Array
     sequences: jax.Array
+    log_probs: jax.Array
     running_token: jax.Array
     is_sequence_finished: jax.Array
     prng_key: random.PRNGKey
@@ -346,6 +347,7 @@ def create_sampling_step(
             state.current_length,
             state.prng_key,
         )
+        next_log_prob = jnp.take(logits, next_token, axis=-1)
 
         next_token = next_token * ~state.is_sequence_finished + pad_token_id * state.is_sequence_finished
 
@@ -356,11 +358,13 @@ def create_sampling_step(
 
         next_token = next_token[:, None]
         next_sequences = jax.lax.dynamic_update_slice(state.sequences, next_token, (0, state.current_length))
+        next_log_probs = jax.lax.dynamic_update_slice(state.log_probs, next_log_prob, (0, state.current_length))
         next_model_kwargs = model.update_inputs_for_generation(model_outputs, state.model_kwargs)
 
         return state.replace(
             current_length=state.current_length + 1,
             sequences=next_sequences,
+            log_probs=next_log_probs,
             running_token=next_token,
             is_sequence_finished=next_sequence_finished,
             prng_key=jax.random.split(state.prng_key, 2)[0],  # Update PRNG key
